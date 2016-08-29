@@ -26,9 +26,9 @@ export class ZabbixQueryController extends QueryCtrl {
     this.templateSrv = templateSrv;
 
     this.editorModes = {
-      0: 'num',
-      1: 'itservice',
-      2: 'text'
+      0: {value: 'num', text: 'Metrics', mode: 0},
+      1: {value: 'itservice', text: 'IT Services', mode: 1},
+      2: {value: 'text', text: 'Text', mode: 2}
     };
 
     // Map functions for bs-typeahead
@@ -40,6 +40,11 @@ export class ZabbixQueryController extends QueryCtrl {
     // Update metric suggestion when template variable was changed
     $rootScope.$on('template-variable-value-updated', () => this.onVariableChange());
 
+    // Update metrics when item selected from dropdown
+    $scope.$on('typeahead-updated', () => {
+      this.onTargetBlur();
+    });
+
     this.init = function() {
       var target = this.target;
 
@@ -48,7 +53,8 @@ export class ZabbixQueryController extends QueryCtrl {
 
       var scopeDefaults = {
         metric: {},
-        oldTarget: _.cloneDeep(this.target)
+        oldTarget: _.cloneDeep(this.target),
+        queryOptionsText: this.renderQueryOptionsText()
       };
       _.defaults(this, scopeDefaults);
 
@@ -60,7 +66,9 @@ export class ZabbixQueryController extends QueryCtrl {
         application: { filter: "" },
         item: { filter: "" },
         functions: [],
-        refId: "A"
+        options: {
+          showDisabledItems: false
+        }
       };
       _.defaults(target, targetDefaults);
 
@@ -98,7 +106,7 @@ export class ZabbixQueryController extends QueryCtrl {
 
   initFilters() {
     var self = this;
-    var itemtype = self.editorModes[self.target.mode];
+    var itemtype = self.editorModes[self.target.mode].value;
     return this.$q.when(this.suggestGroups())
       .then(() => {return self.suggestHosts();})
       .then(() => {return self.suggestApps();})
@@ -156,7 +164,7 @@ export class ZabbixQueryController extends QueryCtrl {
           return self.zabbix
             .getItems(undefined, appids, itemtype)
             .then(items => {
-              if (!self.target.showDisabledItems) {
+              if (!self.target.options.showDisabledItems) {
                 items = _.filter(items, {'status': '0'});
               }
               self.metric.itemList = items;
@@ -169,7 +177,7 @@ export class ZabbixQueryController extends QueryCtrl {
       return self.zabbix
         .getItems(hostids, undefined, itemtype)
         .then(items => {
-          if (!self.target.showDisabledItems) {
+          if (!self.target.options.showDisabledItems) {
             items = _.filter(items, {'status': '0'});
           }
           self.metric.itemList = items;
@@ -256,6 +264,34 @@ export class ZabbixQueryController extends QueryCtrl {
       this.target.functions = _.without(this.target.functions, aliasFunc);
       this.target.functions.push(aliasFunc);
     }
+  }
+
+  toggleQueryOptions() {
+    this.showQueryOptions = !this.showQueryOptions;
+  }
+
+  onQueryOptionChange() {
+    this.queryOptionsText = this.renderQueryOptionsText();
+    this.onTargetBlur();
+  }
+
+  renderQueryOptionsText() {
+    var optionsMap = {
+      showDisabledItems: "Show disabled items"
+    };
+    var options = [];
+    _.forOwn(this.target.options, (value, key) => {
+      if (value) {
+        if (value === true) {
+          // Show only option name (if enabled) for boolean options
+          options.push(optionsMap[key]);
+        } else {
+          // Show "option = value" for another options
+          options.push(optionsMap[key] + " = " + value);
+        }
+      }
+    });
+    return "Options: " + options.join(', ');
   }
 
   /**

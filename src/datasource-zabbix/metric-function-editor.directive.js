@@ -102,7 +102,8 @@ angular
           $input.attr('data-provide', 'typeahead');
 
           var options = funcDef.params[paramIndex].options;
-          if (funcDef.params[paramIndex].type === 'int') {
+          if (funcDef.params[paramIndex].type === 'int' ||
+              funcDef.params[paramIndex].type === 'float') {
             options = _.map(options, function(val) { return val.toString(); });
           }
 
@@ -220,7 +221,8 @@ angular
             }
 
             if ($target.hasClass('fa-question-circle')) {
-              window.open("http://graphite.readthedocs.org/en/latest/functions.html#graphite.render.functions." + funcDef.name,'_blank');
+              var docSite = "http://docs.grafana-zabbix.org/reference/functions/";
+              window.open(docSite + '#' + funcDef.name.toLowerCase(),'_blank');
               return;
             }
           });

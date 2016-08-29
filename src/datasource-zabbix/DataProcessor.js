@@ -142,9 +142,25 @@ export default class DataProcessor {
     return timeseries;
   }
 
+  static scale(factor, datapoints) {
+    return _.map(datapoints, point => {
+      return [
+        point[0] * factor,
+        point[1]
+      ];
+    });
+  }
+
   static groupByWrapper(interval, groupFunc, datapoints) {
     var groupByCallback = DataProcessor.aggregationFunctions[groupFunc];
     return DataProcessor.groupBy(interval, groupByCallback, datapoints);
+  }
+
+  static aggregateByWrapper(interval, aggregateFunc, datapoints) {
+    // Flatten all points in frame and then just use groupBy()
+    var flattenedPoints = _.flatten(datapoints, true);
+    var groupByCallback = DataProcessor.aggregationFunctions[aggregateFunc];
+    return DataProcessor.groupBy(interval, groupByCallback, flattenedPoints);
   }
 
   static aggregateWrapper(groupByCallback, interval, datapoints) {
@@ -164,6 +180,8 @@ export default class DataProcessor {
   static get metricFunctions() {
     return {
       groupBy: this.groupByWrapper,
+      scale: this.scale,
+      aggregateBy: this.aggregateByWrapper,
       average: _.partial(this.aggregateWrapper, this.AVERAGE),
       min: _.partial(this.aggregateWrapper, this.MIN),
       max: _.partial(this.aggregateWrapper, this.MAX),
@@ -215,7 +233,7 @@ function findNearestRight(series, point) {
   var point_index = _.indexOf(series, point);
   var nearestRight;
   for (var i = point_index; i < series.length; i++) {
-    if (series[i][0]) {
+    if (series[i][0] !== null) {
       return series[i];
     }
   }
@@ -226,7 +244,7 @@ function findNearestLeft(series, point) {
   var point_index = _.indexOf(series, point);
   var nearestLeft;
   for (var i = point_index; i > 0; i--) {
-    if (series[i][0]) {
+    if (series[i][0] !== null) {
       return series[i];
     }
   }
